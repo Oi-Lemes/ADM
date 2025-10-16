@@ -32,12 +32,8 @@ const authenticateToken = (req, res, next) => {
 
 
 // --- ROTAS DE AUTENTICAÇÃO E USUÁRIO ---
-// Rota de Teste de Diagnóstico
-app.get('/test', (req, res) => {
-  res.send('O servidor está a funcionar e a rota de teste foi encontrada!');
-});
 
-// ROTA: Criar um novo usuário (cadastro)
+// ROTA: Criar um novo usuário (cadastro tradicional)
 app.post('/usuarios', async (req, res) => {
     const { nome, email, password } = req.body;
 
@@ -52,6 +48,7 @@ app.post('/usuarios', async (req, res) => {
                 nome,
                 email,
                 senha: hashedPassword,
+                // O campo `hasAccess` será `false` por defeito, conforme definido no schema.prisma
             },
         });
         res.status(201).json({ id: user.id, nome: user.nome, email: user.email });
@@ -60,6 +57,42 @@ app.post('/usuarios', async (req, res) => {
             return res.status(409).json({ message: "Este email já está em uso." });
         }
         res.status(500).json({ message: "Erro ao criar usuário.", error: error.message });
+    }
+});
+
+// --- CÓDIGO CORRIGIDO E ADICIONADO ---
+// ROTA: Webhook para receber notificação de compra aprovada
+app.post('/hotmart-webhook', async (req, res) => {
+    console.log("--- ROTA /hotmart-webhook FOI ACIONADA ---"); // Log para diagnóstico
+    
+    // Verificação de segurança (palavra-passe do webhook)
+    const hottok = req.headers['hottok'];
+    if (hottok !== 'saberes') { // Em produção, use uma variável de ambiente segura
+        return res.status(401).json({ message: 'Acesso não autorizado.' });
+    }
+
+    const { email, name, status } = req.body;
+
+    // Ignora eventos que não sejam de compra aprovada
+    if (status !== 'approved') {
+        return res.status(200).json({ message: 'Evento ignorado (não é uma compra aprovada).' });
+    }
+
+    try {
+        // Usa `upsert`: cria o usuário se não existir, ou atualiza se já existir.
+        // Isto garante que tanto novos compradores como clientes antigos que recompram recebam acesso.
+        const user = await prisma.user.upsert({
+            where: { email: email },
+            update: { hasAccess: true, nome: name }, // Atualiza o acesso para um usuário existente
+            create: { email: email, nome: name, hasAccess: true } // Cria um novo usuário já com acesso
+        });
+
+        console.log(`Acesso concedido via webhook para o usuário: ${user.email}`);
+        res.status(200).json({ message: 'Acesso do usuário atualizado com sucesso!' });
+
+    } catch (error) {
+        console.error("Erro no processamento do webhook:", error);
+        res.status(500).json({ message: 'Erro interno ao processar o webhook.' });
     }
 });
 
@@ -73,14 +106,15 @@ app.post('/auth/magic-link', async (req, res) => {
 
     try {
         const user = await prisma.user.findUnique({ where: { email } });
-        if (!user) {
-            return res.status(404).json({ message: 'Usuário não encontrado.' });
+        
+        // --- CÓDIGO CORRIGIDO ---
+        // Agora, verifica não apenas se o usuário existe, MAS TAMBÉM se ele tem permissão de acesso.
+        if (!user || !user.hasAccess) {
+            return res.status(404).json({ message: 'Usuário não encontrado ou não tem permissão para aceder.' });
         }
 
         const token = jwt.sign({ userId: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '15m' });
         
-        // Em um app real, aqui você enviaria o link por email.
-        // Para este projeto, retornamos o link diretamente para facilitar o teste.
         const magicLink = `${process.env.FRONTEND_URL}/auth/callback?token=${token}`;
         console.log(`Link Mágico para ${email}: ${magicLink}`);
 
@@ -109,7 +143,6 @@ app.post('/auth/verify', (req, res) => {
                 return res.status(404).json({ message: 'Usuário não encontrado.' });
             }
 
-            // Gera um token de sessão mais longo
             const sessionToken = jwt.sign({ userId: user.id, email: user.email, nome: user.nome }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
             res.json({
@@ -132,7 +165,7 @@ app.get('/modulos', authenticateToken, async (req, res) => {
         const modulos = await prisma.modulo.findMany({
             include: {
                 aulas: {
-                    select: { id: true } // Apenas IDs para calcular progresso
+                    select: { id: true, titulo: true } 
                 }
             }
         });
