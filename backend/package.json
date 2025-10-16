@@ -1,0 +1,28 @@
+{
+  "name": "area-de-membros",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^6.16.3",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "openai": "^6.3.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "prisma": "^6.16.3"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  }
+}

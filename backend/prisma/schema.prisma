@@ -1,0 +1,47 @@
+// backend/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    Int      @id @default(autoincrement())
+  email                 String   @unique
+  nome                  String?
+  senha                 String? // Campo adicionado para login com senha
+  createdAt             DateTime @default(now())
+  progresso             ProgressoAula[]
+  magicLinkToken        String?   @unique
+  magicLinkTokenExpires DateTime?
+}
+
+model Modulo {
+  id          Int     @id @default(autoincrement())
+  title       String
+  description String
+  aulas       Aula[]
+}
+
+model Aula {
+  id                    Int             @id @default(autoincrement())
+  title                 String
+  contentUrl            String? // Campo que estava faltando
+  modulo                Modulo          @relation(fields: [moduloId], references: [id])
+  moduloId              Int
+  usuariosQueConcluiram ProgressoAula[]
+}
+
+model ProgressoAula {
+  user        User     @relation(fields: [userId], references: [id])
+  userId      Int
+  aula        Aula     @relation(fields: [aulaId], references: [id])
+  aulaId      Int
+  completedAt DateTime @default(now())
+
+  @@id([userId, aulaId])
+}
