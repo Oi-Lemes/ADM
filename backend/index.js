@@ -32,6 +32,10 @@ const authenticateToken = (req, res, next) => {
 
 
 // --- ROTAS DE AUTENTICAÇÃO E USUÁRIO ---
+// Rota de Teste de Diagnóstico
+app.get('/test', (req, res) => {
+  res.send('O servidor está a funcionar e a rota de teste foi encontrada!');
+});
 
 // ROTA: Criar um novo usuário (cadastro)
 app.post('/usuarios', async (req, res) => {
