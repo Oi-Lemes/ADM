@@ -31,7 +31,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const token = localStorage.getItem('token');
+      // CORREÇÃO: Usando 'authToken' que é o nome correto da chave no localStorage
+      const token = localStorage.getItem('authToken');
       if (!token) { setLoading(false); return; }
 
       try {
@@ -44,8 +45,9 @@ export default function DashboardPage() {
         const modulosData = await modulosRes.json();
         const progressoData = await progressoRes.json();
         
+        // CORREÇÃO: O progresso vem como um array de objetos, precisamos extrair os IDs
         setModulos(modulosData);
-        setAulasConcluidas(progressoData);
+        setAulasConcluidas(progressoData.filter((p: any) => p.completed).map((p: any) => p.aulaId));
       } catch (error) {
         console.error("Erro ao buscar dados:", error);
       } finally {
@@ -61,19 +63,22 @@ export default function DashboardPage() {
     const concluidasNesteModulo = aulasDoModuloIds.filter((id: number) => aulasConcluidas.includes(id));
     return (concluidasNesteModulo.length / aulasDoModuloIds.length) * 100;
   };
-
-  const modulosPrincipais = modulos.filter(m => !m.title.includes('Certificado'));
-  const totalAulasPrincipais = modulosPrincipais.reduce((acc, m) => acc + m.aulas.length, 0);
-  const totalConcluidasPrincipais = modulosPrincipais.flatMap(m => m.aulas).filter((a: any) => aulasConcluidas.includes(a.id)).length;
+  
+  // CORREÇÃO: Trocado 'title' por 'titulo'
+  const modulosPrincipais = modulos.filter(m => m.titulo && !m.titulo.includes('Certificado'));
+  const totalAulasPrincipais = modulosPrincipais.reduce((acc, m) => acc + (m.aulas?.length || 0), 0);
+  const totalConcluidasPrincipais = modulosPrincipais.flatMap(m => m.aulas || []).filter((a: any) => aulasConcluidas.includes(a.id)).length;
   const cursoConcluido = totalAulasPrincipais > 0 && totalConcluidasPrincipais >= totalAulasPrincipais;
 
   const modulosParaExibir = [
     ...modulosPrincipais,
-    { id: 98, title: 'Live com o Dr. José Nakamura', description: 'Um encontro exclusivo para tirar dúvidas.', aulas: [] },
-    { id: 99, title: 'Grupo no Whatsapp', description: 'Conecte-se com outros alunos.', aulas: [] },
+    // CORREÇÃO: Trocado 'title' e 'description' para 'titulo' e 'descricao'
+    { id: 98, titulo: 'Live com o Dr. José Nakamura', descricao: 'Um encontro exclusivo para tirar dúvidas.', aulas: [] },
+    { id: 99, titulo: 'Grupo no Whatsapp', descricao: 'Conecte-se com outros alunos.', aulas: [] },
   ];
   if(cursoConcluido) {
-    modulosParaExibir.push({ id: 100, title: 'Emissão de Certificado', description: 'Parabéns! Emita o seu certificado.', aulas: [] });
+    // CORREÇÃO: Trocado 'title' e 'description' para 'titulo' e 'descricao'
+    modulosParaExibir.push({ id: 100, titulo: 'Emissão de Certificado', descricao: 'Parabéns! Emita o seu certificado.', aulas: [] });
   }
 
   if (loading) {
@@ -88,7 +93,6 @@ export default function DashboardPage() {
         </h1>
       </div>
       
-      {/* ALTERAÇÃO FINAL E CORRETA AQUI */}
       <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
         {modulosParaExibir.map((modulo, index) => {
           
@@ -99,16 +103,17 @@ export default function DashboardPage() {
           let imageUrl = `/img/md${index + 1}.jpg`;
           let lockMessage = "Conclua o módulo anterior";
 
-          if (modulo.title.includes('Live')) {
+          // CORREÇÃO: Trocado 'title' por 'titulo' em todas as verificações
+          if (modulo.titulo.includes('Live')) {
             destinationUrl = '/live';
             imageUrl = '/img/md8.jpg';
             isLocked = !cursoConcluido;
-          } else if (modulo.title.includes('Whatsapp')) {
+          } else if (modulo.titulo.includes('Whatsapp')) {
             destinationUrl = '#';
             imageUrl = '/img/md9.jpg';
             isLocked = true; 
             lockMessage = "Acesso liberado após a live";
-          } else if (modulo.title.includes('Certificado')) {
+          } else if (modulo.titulo.includes('Certificado')) {
             destinationUrl = '/certificado';
             imageUrl = '/img/md7.jpg';
             isLocked = false; 
@@ -117,20 +122,23 @@ export default function DashboardPage() {
           return (
             <Link key={modulo.id} href={isLocked ? '#' : destinationUrl} className={`group relative block rounded-lg overflow-hidden transition-all duration-300 transform ${isLocked ? 'cursor-not-allowed filter grayscale' : 'hover:scale-105 hover:shadow-2xl hover:shadow-amber-500/40'}`}>
               <div className="relative w-full h-80">
-                <Image src={imageUrl} alt={modulo.title} layout="fill" objectFit="cover" className="transition-transform duration-500 group-hover:scale-110" onError={(e) => { e.currentTarget.src = '/img/fundo.png'; }}/>
+                {/* CORREÇÃO: Trocado 'title' por 'titulo' no alt da imagem */}
+                <Image src={imageUrl} alt={modulo.titulo} layout="fill" objectFit="cover" className="transition-transform duration-500 group-hover:scale-110" onError={(e) => { e.currentTarget.src = '/img/fundo.png'; }}/>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
               </div>
               <div className="absolute bottom-0 left-0 p-4 md:p-6 text-white w-full">
-                <h3 className="text-xl md:text-2xl font-bold uppercase tracking-wider">{modulo.title}</h3>
-                <p className={`${modulo.title.includes('Certificado') ? 'text-amber-300' : 'text-gray-300'} text-sm mt-1`}>
-                  {modulo.title.includes('Certificado') && '🏆 '}
-                  {modulo.description}
+                {/* CORREÇÃO: Trocado 'title' por 'titulo' */}
+                <h3 className="text-xl md:text-2xl font-bold uppercase tracking-wider">{modulo.titulo}</h3>
+                {/* CORREÇÃO: Trocado 'title' por 'titulo' e 'description' por 'descricao' */}
+                <p className={`${modulo.titulo.includes('Certificado') ? 'text-amber-300' : 'text-gray-300'} text-sm mt-1`}>
+                  {modulo.titulo.includes('Certificado') && '🏆 '}
+                  {modulo.descricao}
                 </p>
               </div>
               {(!isLocked && modulo.aulas.length > 0) && <ProgressCircle percentage={getProgressoModulo(modulo)} />}
               {isLocked && (
                 <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center p-4 text-center">
-                   <svg className="w-10 h-10 mb-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    <svg className="w-10 h-10 mb-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                   <span className="font-bold">BLOQUEADO</span>
                   <span className="text-xs">{lockMessage}</span>
                 </div>

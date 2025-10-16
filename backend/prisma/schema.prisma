@@ -1,47 +1,61 @@
-// backend/prisma/schema.prisma
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model User {
   id                    Int      @id @default(autoincrement())
   email                 String   @unique
   nome                  String?
-  senha                 String? // Campo adicionado para login com senha
+  senha                 String?
+  hasAccess             Boolean  @default(false) // <-- CORREÇÃO ADICIONADA AQUI
   createdAt             DateTime @default(now())
   progresso             ProgressoAula[]
-  magicLinkToken        String?   @unique
+  magicLinkToken        String?  @unique
   magicLinkTokenExpires DateTime?
 }
 
 model Modulo {
-  id          Int     @id @default(autoincrement())
-  title       String
-  description String
+  id          Int      @id @default(autoincrement())
+  titulo      String
+  descricao   String
+  imagemUrl   String?
   aulas       Aula[]
+  contentUrl  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Aula {
-  id                    Int             @id @default(autoincrement())
-  title                 String
-  contentUrl            String? // Campo que estava faltando
-  modulo                Modulo          @relation(fields: [moduloId], references: [id])
-  moduloId              Int
-  usuariosQueConcluiram ProgressoAula[]
+  id          Int      @id @default(autoincrement())
+  titulo      String
+  descricao   String
+  videoUrl    String
+  modulo      Modulo   @relation(fields: [moduloId], references: [id])
+  moduloId    Int
+  progresso   ProgressoAula[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model ProgressoAula {
-  user        User     @relation(fields: [userId], references: [id])
-  userId      Int
-  aula        Aula     @relation(fields: [aulaId], references: [id])
-  aulaId      Int
-  completedAt DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  aula      Aula     @relation(fields: [aulaId], references: [id])
+  aulaId    Int
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
 
-  @@id([userId, aulaId])
+  @@unique([userId, aulaId])
 }
